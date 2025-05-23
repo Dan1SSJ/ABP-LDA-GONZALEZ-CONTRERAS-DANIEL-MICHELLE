@@ -1,0 +1,100 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.metrics import confusion_matrix, classification_report
+
+# --------------------------
+# 1. Crear y guardar un dataset simulado
+# --------------------------
+data = {
+    "edad": [25, 45, 35, 50, 23, 37, 30, 41, 28, 55, 26, 48, 34, 29, 52],
+    "ingresos_mensuales": [12000, 30000, 18000, 45000, 9000, 22000, 17000, 31000, 15000, 47000, 11000, 33000, 19000, 14000, 42000],
+    "escolaridad": [2, 3, 3, 4, 1, 3, 2, 3, 2, 4, 1, 4, 3, 2, 4],
+    "dependientes": [0, 2, 1, 3, 0, 1, 0, 2, 1, 3, 0, 2, 1, 1, 3],
+    "historial_pagos": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1],
+    "solvente": [1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1]
+}
+
+df = pd.DataFrame(data)
+df.to_csv("datos_credito.csv", index=False)
+
+# --------------------------
+# 2. Cargar y preparar los datos
+# --------------------------
+df = pd.read_csv("datos_credito.csv")
+X = df.drop("solvente", axis=1)
+y = df["solvente"]
+
+# Normalizar los datos
+scaler = StandardScaler()
+X_escalado = scaler.fit_transform(X)
+
+# División entrenamiento/prueba
+X_entrenamiento, X_prueba, y_entrenamiento, y_prueba = train_test_split(
+    X_escalado, y, test_size=0.3, random_state=42
+)
+
+# --------------------------
+# 3. Modelo LDA
+# --------------------------
+lda = LinearDiscriminantAnalysis()
+lda.fit(X_entrenamiento, y_entrenamiento)
+
+# Predicción y evaluación
+y_predicho = lda.predict(X_prueba)
+
+# --------------------------
+# 4. Matriz de Confusión
+# --------------------------
+print("=== Matriz de Confusión ===")
+matriz = confusion_matrix(y_prueba, y_predicho)
+print(matriz)
+
+# --------------------------
+# 5. Reporte de Clasificación en Español
+# --------------------------
+reporte = classification_report(y_prueba, y_predicho, output_dict=True)
+
+print("\n=== Reporte de Clasificación ===")
+print(f"Clase 0 (Moroso):")
+print(f"  Precisión: {reporte['0']['precision']:.2f}")
+print(f"  Sensibilidad (Recall): {reporte['0']['recall']:.2f}")
+print(f"  F1-score: {reporte['0']['f1-score']:.2f}")
+
+print(f"\nClase 1 (Solvente):")
+print(f"  Precisión: {reporte['1']['precision']:.2f}")
+print(f"  Sensibilidad (Recall): {reporte['1']['recall']:.2f}")
+print(f"  F1-score: {reporte['1']['f1-score']:.2f}")
+
+print(f"\nExactitud global (Accuracy): {reporte['accuracy']:.2f}")
+
+print(f"\nPromedio ponderado:")
+print(f"  Precisión: {reporte['weighted avg']['precision']:.2f}")
+print(f"  Sensibilidad: {reporte['weighted avg']['recall']:.2f}")
+print(f"  F1-score: {reporte['weighted avg']['f1-score']:.2f}")
+
+# --------------------------
+# 6. Validación cruzada
+# --------------------------
+puntajes = cross_val_score(lda, X_escalado, y, cv=5)
+print("\n=== Precisión Promedio (Validación cruzada 5-fold) ===")
+print(f"{puntajes.mean():.2f}")
+
+# --------------------------
+# 7. Predicción de un nuevo solicitante
+# --------------------------
+nuevo_solicitante = pd.DataFrame([{
+    "edad": 32,
+    "ingresos_mensuales": 18000,
+    "escolaridad": 3,
+    "dependientes": 1,
+    "historial_pagos": 0
+}])
+
+nuevo_normalizado = scaler.transform(nuevo_solicitante)
+resultado = lda.predict(nuevo_normalizado)
+
+print("\n=== Predicción para nuevo solicitante ===")
+print("Resultado:", "Solvente" if resultado[0] == 1 else "Moroso")
